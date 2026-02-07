@@ -1,0 +1,480 @@
+<!doctype html>
+<!--
+  The DOCTYPE tells the browser:
+  "This file uses modern HTML (HTML5)."
+  Always keep this at the very top.
+-->
+<html lang="en">
+<head>
+  <!--
+    UTF-8 supports English + symbols.
+    (Also safe for other languages if needed later.)
+  -->
+  <meta charset="utf-8" />
+
+  <!--
+    VIEWPORT SETTINGS (VERY IMPORTANT FOR iOS)
+
+    width=device-width
+      → Page width equals the device screen width
+
+    initial-scale=1
+      → No zoom when the page first loads
+
+    maximum-scale=1 + user-scalable=no
+      → Prevents iOS Safari double-tap zoom
+      → This avoids the screen zooming when tapping +1 repeatedly
+
+    NOTE:
+    This disables manual pinch-zoom.
+    For this counter app, that is intentional.
+  -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
+
+  <!--
+    Makes the page behave like a standalone app
+    when added to the iOS Home Screen.
+  -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <!--
+    Status bar style for iOS Home Screen web apps
+  -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+  <!-- Page title (shown in browser / task switcher) -->
+  <title>Counters</title>
+
+  <style>
+    /*
+      ROOT FONT SETTINGS
+
+      - Uses system fonts (iOS / Windows / Android friendly)
+      - Looks native on most devices
+    */
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+      /* Prevent Safari from auto-resizing text */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    /*
+      touch-action: manipulation
+
+      Tells the browser:
+      "These elements are for tapping, not zooming."
+
+      This helps reduce gesture conflicts
+      when tapping buttons quickly.
+    */
+    html, body {
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 16px;
+      background: #ffffff;
+    }
+
+    /*
+      PAGE CONTAINER
+
+      - Centers the content
+      - Prevents it from becoming too wide on iPad
+    */
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+
+    /*
+      GRID LAYOUT
+
+      Default:
+      - Single column (iPhone)
+
+      Reason:
+      - Safer for small screens
+    */
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+    }
+
+    /*
+      iPad layout rule (width-based, not orientation-based)
+
+      - Most iPads are ≥ 700px wide even in portrait
+      - This gives 3 columns on iPad
+    */
+    @media (min-width: 700px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+    }
+
+    /*
+      INDIVIDUAL COUNTER CARD
+    */
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 14px;
+
+      /* Two columns:
+         left = name
+         right = value
+      */
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+
+      align-items: center;
+      background: #fff;
+    }
+
+    /*
+      COUNTER NAME INPUT
+
+      - Looks like a title, not a form
+      - Editable, but subtle
+      - Temporary (not saved)
+    */
+    .nameInput {
+      width: 72%;
+      max-width: 180px;
+      font-size: 16px;
+      font-weight: 700;
+
+      border: none;
+      border-bottom: 1px dashed #ccc;
+
+      padding: 6px 2px;
+      background: transparent;
+      outline: none;
+    }
+
+    .nameInput:focus {
+      border-bottom-color: #888;
+    }
+
+    /*
+      COUNTER VALUE (BIG NUMBER)
+    */
+    .value {
+      font-size: 28px;
+      font-weight: 800;
+      text-align: right;
+
+      /* Prevent layout jump when number changes */
+      min-width: 2.2em;
+    }
+
+    /*
+      BUTTON ROW INSIDE EACH CARD
+    */
+    .btns {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    /*
+      BUTTON BASE STYLE
+    */
+    button {
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 15px;
+      background: #fff;
+      cursor: pointer;
+
+      /* iOS tap optimizations */
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+
+      /* Prevent text selection / callout */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    button:active {
+      transform: scale(0.985);
+    }
+
+    /*
+      DANGEROUS ACTION (RESET)
+    */
+    .danger {
+      border-color: #ffb3b3;
+    }
+
+    .danger:active {
+      background: #ffecec;
+    }
+
+    /*
+      BOTTOM ACTION ROW (Reset All / Export / Import)
+    */
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .row button {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    /*
+      HELPER TEXT
+    */
+    .hint {
+      color: #666;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Counters</h1>
+
+    <!-- Counter cards will be generated here by JavaScript -->
+    <div id="grid" class="grid"></div>
+
+    <!-- Global action buttons -->
+    <div class="row">
+      <button id="resetAll" class="danger">Reset All</button>
+      <button id="export">Export</button>
+      <button id="import">Import</button>
+    </div>
+
+    <div class="hint">
+      Counter names are temporary and reset on refresh.<br />
+      Values are stored locally in this browser (localStorage).
+    </div>
+  </div>
+
+  <script>
+    /*
+      STORAGE KEY
+
+      This is the "drawer name" in localStorage.
+      Change it if you want a fresh data set.
+    */
+    const STORAGE_KEY = "simple_counter_values_v1";
+
+    /*
+      Internal counter IDs
+      These never change and are used as keys.
+    */
+    const IDS = ["A", "B", "C"];
+
+    /*
+      Default display names
+    */
+    const DEFAULT_NAMES = {
+      A: "Counter A",
+      B: "Counter B",
+      C: "Counter C"
+    };
+
+    /*
+      Default values (used on first run)
+    */
+    const DEFAULT_VALUES = {
+      A: 0,
+      B: 0,
+      C: 0
+    };
+
+    /*
+      Temporary names (NOT saved)
+      Reset when page reloads
+    */
+    const tempNames = { ...DEFAULT_NAMES };
+
+    /*
+      Load values from localStorage
+      - If nothing exists → use defaults
+      - If data is broken → fail safely
+    */
+    function loadValues() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...DEFAULT_VALUES };
+        return { ...DEFAULT_VALUES, ...JSON.parse(raw) };
+      } catch {
+        return { ...DEFAULT_VALUES };
+      }
+    }
+
+    /*
+      Save values back to localStorage
+    */
+    function saveValues(values) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+    }
+
+    /*
+      Convert input to integer safely
+      - Rejects NaN / Infinity
+    */
+    function toInt(x) {
+      const n = Number(x);
+      return Number.isFinite(n) ? Math.trunc(n) : null;
+    }
+
+    /*
+      Current counter values in memory
+    */
+    let values = loadValues();
+
+    /*
+      MAIN RENDER FUNCTION
+
+      - Clears the grid
+      - Rebuilds all counter cards
+      - Called after every change
+    */
+    function render() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+
+      IDS.forEach(id => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        /* Name input */
+        const nameInput = document.createElement("input");
+        nameInput.className = "nameInput";
+        nameInput.value = tempNames[id];
+        nameInput.placeholder = DEFAULT_NAMES[id];
+
+        nameInput.autocapitalize = "off";
+        nameInput.autocomplete = "off";
+        nameInput.spellcheck = false;
+
+        nameInput.oninput = () => {
+          tempNames[id] = nameInput.value.trim() || DEFAULT_NAMES[id];
+        };
+
+        /* Value display */
+        const valueDiv = document.createElement("div");
+        valueDiv.className = "value";
+        valueDiv.textContent = String(values[id]);
+
+        /* Buttons */
+        const btns = document.createElement("div");
+        btns.className = "btns";
+
+        const incBtn = document.createElement("button");
+        incBtn.textContent = "+1";
+        incBtn.onclick = () => {
+          values[id] = (toInt(values[id]) ?? 0) + 1;
+          saveValues(values);
+          render();
+        };
+
+        const setBtn = document.createElement("button");
+        setBtn.textContent = "Set";
+        setBtn.onclick = () => {
+          const input = prompt(
+            `Set value for "${tempNames[id]}":`,
+            String(values[id])
+          );
+          if (input === null) return;
+
+          const v = toInt(input);
+          if (v === null) {
+            alert("Please enter an integer.");
+            return;
+          }
+          values[id] = v;
+          saveValues(values);
+          render();
+        };
+
+        const resetBtn = document.createElement("button");
+        resetBtn.textContent = "Reset";
+        resetBtn.className = "danger";
+        resetBtn.onclick = () => {
+          if (!confirm(`Reset "${tempNames[id]}" to 0?`)) return;
+          values[id] = 0;
+          saveValues(values);
+          render();
+        };
+
+        btns.append(incBtn, setBtn, resetBtn);
+        card.append(nameInput, valueDiv, btns);
+        grid.appendChild(card);
+      });
+    }
+
+    /*
+      Reset ALL counters
+    */
+    document.getElementById("resetAll").onclick = () => {
+      if (!confirm("Reset ALL counters?")) return;
+      values = { ...DEFAULT_VALUES };
+      saveValues(values);
+      render();
+    };
+
+    /*
+      Export values as JSON
+    */
+    document.getElementById("export").onclick = async () => {
+      const text = JSON.stringify(values);
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("Copied to clipboard (values only).");
+      } catch {
+        prompt("Copy this JSON:", text);
+      }
+    };
+
+    /*
+      Import values from JSON
+    */
+    document.getElementById("import").onclick = () => {
+      const input = prompt("Paste JSON to import:");
+      if (input === null) return;
+
+      try {
+        values = { ...DEFAULT_VALUES, ...JSON.parse(input) };
+        saveValues(values);
+        render();
+        alert("Import successful.");
+      } catch {
+        alert("Invalid JSON format.");
+      }
+    };
+
+    /* Initial render */
+    render();
+  </script>
+</body>
+</html>
